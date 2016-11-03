@@ -1,4 +1,4 @@
-# `VicWaterfall` !
+# `VicVortex` !
 
 This is an OpenFrameworks project developed off of waveformWaterfall provided in Music 256a.
 
