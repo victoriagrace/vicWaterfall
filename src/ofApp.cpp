@@ -5,13 +5,10 @@
 //--------------------------------------------------------------
 void ofApp::setup(){
     //-AUDIO----------------------------------------------------
-   	int bufferSize		= 512;
-
-    lAudio.assign(bufferSize, 0.0);
-    rAudio.assign(bufferSize, 0.0);
-    audioBuffer = new float*[2];
-    audioBuffer[0] = &lAudio[0];
-    audioBuffer[1] = &rAudio[0];
+   	int bufferSize		= MY_BUFFERSIZE;
+    
+    lAudio.assign(MY_BUFFERSIZE, 0.0);
+    rAudio.assign(MY_BUFFERSIZE, 0.0);
     
     soundStream.printDeviceList();
     
@@ -22,7 +19,13 @@ void ofApp::setup(){
     // Resize and initialize left and right buffers...
     left.resize( MY_BUFFERSIZE, 0 );
     right.resize( MY_BUFFERSIZE, 0 );
-    
+    faustLeft.resize( MY_BUFFERSIZE, 0 );
+    faustRight.resize( MY_BUFFERSIZE, 0 );
+
+    audioBuffer = new float*[2];
+    audioBuffer[0] = &faustLeft[0];
+    audioBuffer[1] = &faustRight[0];
+
     // Resize and initialize left and right history buffers...
     leftHistory.resize(  MY_BUFFERHISTORY, left  );
     rightHistory.resize( MY_BUFFERHISTORY, right );
@@ -57,6 +60,9 @@ void ofApp::setup(){
     // Tell OpenFrameworks to use smooth edges
     ofEnableSmoothing();
     
+    // FFT ------
+    fft = ofxFft::create(MY_BUFFERSIZE, OF_FFT_WINDOW_HAMMING);
+
 }
 
 //--------------------------------------------------------------
@@ -68,6 +74,37 @@ void ofApp::update(){
     // Remove oldest buffers
     leftHistory.erase(  leftHistory.begin(),  leftHistory.begin()+1  );
     rightHistory.erase( rightHistory.begin(), rightHistory.begin()+1 );
+    
+    // ----- FFT -------------------------------------
+//    // Normalize the left channel waveform
+    float maxValue = 0;
+    for(int i = 0; i < left.size(); i++) {
+        if(abs(left[i]) > maxValue) { maxValue = abs(left[i]); }
+    }
+    for(int i = 0; i < left.size(); i++) { left[i] /= maxValue; }
+    
+    // Take the FFT of the left channel
+    fft->setSignal(&left[0]);
+    
+    // Get the magnitudes and copy them to audioBins
+    float* fftData = fft->getAmplitude();
+    
+    // Now normalize the FFT magnitude values
+    maxValue = 0;
+    for(int i = 0; i < fft->getBinSize(); i++) {
+        if(abs(fftData[i]) > maxValue) { maxValue = abs(fftData[i]); }
+    }
+    for(int i = 0; i < fft->getBinSize(); i++) { fftData[i] /= maxValue; }
+    
+//  std::cout << fft->getBinSize() << "\n";
+    // Update the bokeh with its amplitude value (taken from an FFT bin)
+   
+    for(int i=0; i<N_BINS; i++){
+        myCol[i].update(fftData[int( i * fft->getBinSize() / N_BINS )]) ;
+    }
+
+    
+    
 }
 
 //--------------------------------------------------------------
@@ -199,28 +236,23 @@ void ofApp::audioIn(float * input, int bufferSize, int nChannels){
 
 
 void ofApp::audioOut(float * output, int bufferSize, int nChannels){
-    //pan = 0.5f;
-
-    // sin (n) seems to have trouble when n is very large, so we
-    // keep phase in the range of 0-TWO_PI like this:
- 
+   
+    float *inBuf[2] = { &right[0], &right[0] };
     
-    
-    // Reverb stuff
-//    if (effectOn == true) {
-//    effect.compute(bufferSize, audioBuffer, audioBuffer); // computing one block with Faust
-//    }
-//
-    effect.compute(bufferSize, audioBuffer, audioBuffer); // computing one block with Faust
-
-    
-    // Interleave the output buffer
-    for (int i = 0; i < bufferSize; i++)
-    {
-        output[2*i] = left[i]; //audioBuffer[0][i];
-        output[2*i+1] = right[i]; //audioBuffer[1][i];
+    //--- effect stuff
+    if (effectOn == true) {
+    effect.compute(bufferSize, inBuf, audioBuffer); // computing one block with Faust
+        
+        // Interleave the output buffer
+        for (int i = 0; i < bufferSize; i++)
+        {
+            output[2*i] = faustLeft[i]; //audioBuffer[0][i];
+            output[2*i+1] = faustRight[i]; //audioBuffer[1][i];
+        }
     }
-    
+//
+//    effect.compute(bufferSize, audioBuffer, audioBuffer); // computing one block with Faust
+
 }
 
 

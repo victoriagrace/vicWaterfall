@@ -13,11 +13,51 @@
 #define MY_BUFFERSIZE    512              // number of frames in a buffer
 #define MY_NBUFFERS      2                // number of buffers latency
 #define MY_PIE           3.14159265358979 // for convenience
+#define N_BINS           MY_BUFFERSIZE / 2
+// for convenience
 
 
 //-----------------------------------------------------------------------------
 // My application
 //-----------------------------------------------------------------------------
+
+class SetColors {
+public:
+    // Constructor and destructor -- do nothing
+    SetColors() {}
+    ~SetColors() {}
+    
+    void setup(){
+        color.r = ofRandom(0, 255);            // Get random color (r)
+    }
+    
+    void update(float alphaValue) {
+        // Update the alpha value, so it can be responsive to input
+        // (in our case, the magnitude of an FFT bin.
+        color.a = alphaValue * 255;
+        
+       
+    }
+    void findLargestBin()
+    {
+        
+    }
+    
+    void draw() {
+    }
+    
+private:
+    // Member variables
+//    ofImage bokeh_image;     // Holds our image data
+    ofColor color;     // Keep track of Color's color
+    int x, y, width, height; // Position member variables
+};
+
+
+
+
+
+
 class ofApp : public ofBaseApp{
 
 public:
@@ -58,10 +98,14 @@ public:
     
 private:
   
-    
+    ofxFft* fft;
+
     // Vectors for our left- and right-channel waveforms
     vector<float> left;
     vector<float> right;
+    
+    vector<float> faustLeft;
+    vector<float> faustRight;
     
     // Double vectors to save previous waveforms, for plotting in the waterfall
     vector< vector<float> > leftHistory;
@@ -73,5 +117,5 @@ private:
     float mouse3;
     bool myDis;
     bool effectOn;
-
+    SetColors myCol[N_BINS];
 };
